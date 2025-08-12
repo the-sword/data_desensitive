@@ -22,5 +22,8 @@ ultralytics
 # Logging
 loguru
  
-# RetinaFace (as per your reference code)
-retina-face-pytorch
+# Optional: biubug6/Pytorch_Retinaface (for PyTorch backend)
+git+https://github.com/biubug6/Pytorch_Retinaface.git
+
+# Note: install CPU-only PyTorch separately (choose your platform):
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
