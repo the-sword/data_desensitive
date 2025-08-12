@@ -21,3 +21,6 @@ ultralytics
 
 # Logging
 loguru
+ 
+# RetinaFace (as per your reference code)
+retina-face-pytorch
