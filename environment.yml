@@ -1,0 +1,26 @@
+name: data-sensitive-cpu
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  # CPU PyTorch stack
+  - pytorch=2.3.*
+  - torchvision=0.18.*
+  - cpuonly  # ensure CPU build of PyTorch
+  # Web API
+  - fastapi
+  - uvicorn
+  - python-multipart
+  # Image & numeric
+  - opencv
+  - numpy
+  - pillow
+  # Utilities
+  - loguru
+  - pip:
+      # OCR (PaddleOCR) and YOLO runtime from pip
+      - paddleocr
+      - ultralytics

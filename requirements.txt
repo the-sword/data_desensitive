@@ -1,0 +1,23 @@
+# CPU-friendly requirements for data anonymization service
+# If torch install fails via pip in your environment, prefer using conda via environment.yml
+
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1+cpu
+torchvision==0.18.1+cpu
+
+fastapi
+uvicorn[standard]
+python-multipart
+
+opencv-python
+numpy
+Pillow
+
+# OCR (text/plate)
+paddleocr
+
+# YOLOv5/8 runtime (for plate detection alternative)
+ultralytics
+
+# Logging
+loguru
