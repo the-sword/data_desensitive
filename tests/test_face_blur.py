@@ -15,9 +15,21 @@ def main():
     output_dir = project_root / "output"
     output_path = output_dir / "face_blurred_retinaface.jpg"
 
-    blurrer = FaceBlurrer()
+    import time
+
+    blurrer = FaceBlurrer(warmup=True)
+
+    t0 = time.perf_counter()
     result = blurrer.process_image(str(input_path), str(output_path), method="gaussian")
+    t1 = time.perf_counter()
     print(f"Saved to: {result}")
+    print(f"First run elapsed: {t1 - t0:.2f}s")
+
+    # Second run to show speed-up after warmup/model build
+    t2 = time.perf_counter()
+    result2 = blurrer.process_image(str(input_path), str(output_path), method="gaussian")
+    t3 = time.perf_counter()
+    print(f"Second run elapsed: {t3 - t2:.2f}s")
 
 
 if __name__ == "__main__":

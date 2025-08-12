@@ -5,9 +5,28 @@ from typing import List, Tuple
 
 
 class FaceBlurrer:
-    def __init__(self):
-        """使用 Keras 版 RetinaFace 进行人脸检测与模糊（CPU 友好）。"""
+    def __init__(self, warmup: bool = True):
+        """
+        使用 Keras 版 RetinaFace 进行人脸检测与模糊（CPU 友好）。
+
+        参数:
+          warmup: 是否在初始化时进行一次小尺寸预热，以避免首帧卡顿。
+        """
+        # 强制使用 CPU，并降低 TensorFlow 日志噪音
+        os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
+        os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+        os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+
         self.detector = self._load_detector()
+
+        # 预热：使用一张小尺寸黑图触发模型构建
+        if warmup:
+            try:
+                dummy = np.zeros((160, 160, 3), dtype=np.uint8)
+                _ = self.detect_faces(dummy)
+            except Exception:
+                # 预热失败不影响后续实际调用
+                pass
 
     def _load_detector(self):
         """加载 Keras 版 RetinaFace（无需本地权重）。"""
@@ -79,7 +98,7 @@ class FaceBlurrer:
 
         return image
 
-    def process_image(self, input_path: str, output_path: str, method: str = "gaussian", max_size: int = 1200):
+    def process_image(self, input_path: str, output_path: str, method: str = "gaussian", max_size: int = 640):
         """
         处理单张图像
 
