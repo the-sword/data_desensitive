@@ -5,14 +5,14 @@ from typing import List, Tuple
 
 
 class FaceBlurrer:
-    def __init__(self, warmup: bool = True, backend: str = "keras_retinaface", weights_path: str | None = None):
+    def __init__(self, warmup: bool = True, backend: str = "yolov8_face", weights_path: str | None = None):
         """
-        使用 Keras 版 RetinaFace 进行人脸检测与模糊（CPU 友好）。
+        支持多后端的人脸检测与模糊（CPU 友好）。
 
         参数:
           warmup: 是否在初始化时进行一次小尺寸预热，以避免首帧卡顿。
-          backend: 检测后端，支持 "keras_retinaface" | "yolov8_face" | "pytorch_retinaface"
-          weights_path: 部分后端（如 PyTorch RetinaFace）可指定权重路径
+          backend: 检测后端，支持 "yolov8_face" | "keras_retinaface"
+          weights_path: 部分后端（如 YOLOv8-face）可指定权重路径
         """
         # 强制使用 CPU，并降低 TensorFlow 日志噪音
         os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
@@ -50,25 +50,18 @@ class FaceBlurrer:
                 raise ImportError(
                     "需要 ultralytics 包: pip install ultralytics"
                 ) from e
-            # 需要提供人脸检测权重文件路径（例如 models/yolov8n-face.pt）
+            # 需要提供人脸检测权重文件路径（例如 models/yolov8n-face.pt）。
+            # 若缺失，则回退到 keras_retinaface，保证功能可用。
             if not self.weights_path or not os.path.exists(self.weights_path):
-                raise FileNotFoundError(
-                    "未提供 YOLOv8-face 权重文件。请将人脸模型权重保存到本地并通过 weights_path 传入，例如 models/yolov8n-face.pt"
-                )
+                try:
+                    from retinaface import RetinaFace
+                    self.backend = "keras_retinaface"  # 回退
+                    return RetinaFace
+                except Exception:
+                    raise FileNotFoundError(
+                        "未提供 YOLOv8-face 权重文件，且回退到 Keras RetinaFace 失败。请提供 models/yolov8n-face.pt 或安装 retinaface/tf-keras/tensorflow"
+                    )
             return YOLO(self.weights_path)
-
-        if self.backend == "pytorch_retinaface":
-            # 采用 biubug6/Pytorch_Retinaface 实现；需要其源码可被导入
-            try:
-                import torch  # noqa: F401
-                # 延迟导入并在 detect_faces 中具体使用，以减少此处依赖复杂度
-                return "pytorch_retinaface"
-            except Exception as e:
-                raise ImportError(
-                    "需要 PyTorch 以及 biubug6/Pytorch_Retinaface 实现。建议安装：\n"
-                    "pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu\n"
-                    "pip install git+https://github.com/biubug6/Pytorch_Retinaface.git"
-                ) from e
 
         raise ValueError(f"不支持的后端: {self.backend}")
 
@@ -99,38 +92,6 @@ class FaceBlurrer:
                     for (x1, y1, x2, y2) in boxes:
                         face_boxes.append((int(x1), int(y1), int(x2), int(y2)))
 
-        elif self.backend == "pytorch_retinaface":
-            # 这里给出最小可用实现框架；具体加载模型定义与权重可能因仓库版本而异
-            try:
-                import torch
-                from retinaface.data import cfg_re50
-                from retinaface.models.retinaface import RetinaFace as RFModel
-                from retinaface.utils.prior_box import PriorBox
-                from retinaface.utils.nms.py_cpu_nms import py_cpu_nms
-                from retinaface.layers.functions.prior_box import PriorBox as PriorBoxLegacy  # 兼容不同分支
-            except Exception:
-                raise ImportError(
-                    "未找到 biubug6/Pytorch_Retinaface 相关模块。请安装后重试。"
-                )
-
-            if not self.weights_path or not os.path.exists(self.weights_path):
-                raise FileNotFoundError(
-                    "未提供有效的 PyTorch RetinaFace 权重路径 weights_path，例如 models/retinaface_resnet50.pth"
-                )
-
-            # 为避免频繁加载，这里简单地每次创建模型；生产环境应缓存到 self.detector
-            device = torch.device("cpu")
-            cfg = cfg_re50
-            net = RFModel(cfg=cfg, phase="test")
-            state_dict = torch.load(self.weights_path, map_location=device)
-            net.load_state_dict(state_dict, strict=False)
-            net.eval().to(device)
-
-            # 推理前处理，具体实现依赖仓库；此处省略详细预处理、解码与 NMS 实现
-            # 为保持任务推进，这里暂时抛出提示，指引安装后以专用脚本进行对比。
-            raise NotImplementedError(
-                "为了保证兼容你本地的权重与仓库实现，建议安装 biubug6 代码后，我将补充完备的预处理/后处理并缓存模型。"
-            )
 
         return face_boxes
 

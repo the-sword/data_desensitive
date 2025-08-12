@@ -40,9 +40,8 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     backends = [
-        ("keras_retinaface", None),
         ("yolov8_face", str(ROOT / "models" / "yolov8n-face.pt")),
-        ("pytorch_retinaface", str(ROOT / "models" / "retinaface_resnet50.pth")),
+        ("keras_retinaface", None),
     ]
 
     results = []

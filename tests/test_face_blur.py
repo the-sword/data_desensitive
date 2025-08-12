@@ -13,11 +13,15 @@ def main():
     project_root = Path(__file__).resolve().parents[1]
     input_path = project_root / "data" / "person.jpeg"
     output_dir = project_root / "output"
-    output_path = output_dir / "face_blurred_retinaface.jpg"
+    output_path = output_dir / "face_blurred_yolov8.jpg"
 
     import time
 
-    blurrer = FaceBlurrer(warmup=True)
+    blurrer = FaceBlurrer(
+        warmup=True,
+        backend="yolov8_face",
+        weights_path=str(project_root / "models" / "yolov8n-face.pt"),
+    )
 
     t0 = time.perf_counter()
     result = blurrer.process_image(str(input_path), str(output_path), method="gaussian")
