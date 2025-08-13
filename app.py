@@ -36,6 +36,9 @@ UPLOAD_DIR = Path("uploads")
 OUTPUT_DIR = Path("output")
 TEMP_DIR = Path("temp")
 
+# 处理状态跟踪
+PROCESSING_SESSIONS = {}
+
 # 确保目录存在
 for dir_path in [UPLOAD_DIR, OUTPUT_DIR, TEMP_DIR]:
     dir_path.mkdir(exist_ok=True)
@@ -109,6 +112,15 @@ async def upload_files(
     session_dir = TEMP_DIR / session_id
     session_dir.mkdir(exist_ok=True)
     
+    # 初始化处理状态
+    PROCESSING_SESSIONS[session_id] = {
+        "status": "processing",
+        "progress": 0,
+        "total_files": len(files),
+        "processed_files": 0,
+        "error": None
+    }
+    
     input_dir = session_dir / "input"
     output_dir = session_dir / "output"
     input_dir.mkdir(exist_ok=True)
@@ -163,6 +175,8 @@ async def upload_files(
                         # 复制最终结果
                         shutil.copy2(current_path, output_path)
                         processed_count += 1
+                        PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
+                        PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
                         
                     except Exception as e:
                         logger.error(f"处理文件 {file_path.name} 时出错: {e}")
@@ -224,6 +238,21 @@ async def cleanup_session(session_id: str):
 async def health_check():
     """健康检查 - 支持GET和HEAD请求"""
     return {"status": "healthy", "service": "data-anonymization"}
+
+@app.get("/api/status/{session_id}")
+async def check_processing_status(session_id: str):
+    """检查处理状态"""
+    if session_id not in PROCESSING_SESSIONS:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    
+    session_status = PROCESSING_SESSIONS[session_id]
+    
+    # 如果处理完成，返回下载链接
+    if session_status["progress"] >= 1:
+        session_status["status"] = "completed"
+        session_status["download_url"] = f"/api/download/{session_id}"
+    
+    return session_status
 
 if __name__ == "__main__":
     # 配置日志

@@ -285,6 +285,14 @@ document.addEventListener('DOMContentLoaded', function() {
         handleFiles(this.files);
     });
 
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+    }
+
     function handleFiles(files) {
         if (files.length === 0) return;
 
@@ -295,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const fileItem = document.createElement('div');
             fileItem.className = 'alert alert-info d-flex justify-content-between align-items-center';
             fileItem.innerHTML = `
-                <span><i class="fas fa-file-image me-2"></i>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                <span><i class="fas fa-file-image me-2"></i>${file.name} (${formatFileSize(file.size)})</span>
                 <span class="badge bg-primary">${file.type}</span>
             `;
             fileList.appendChild(fileItem);
@@ -343,16 +351,41 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
-                progressBar.style.width = '100%';
-                progressText.textContent = '处理完成！';
-                
-                // 显示结果
-                document.getElementById('resultText').textContent = 
-                    `成功处理了 ${result.processed_files} 个文件`;
-                document.getElementById('downloadBtn').href = result.download_url;
-                resultArea.style.display = 'block';
-                
-                progressContainer.style.display = 'none';
+                // 更新进度条为上传完成
+                progressBar.style.width = '50%';
+                progressText.textContent = '文件已上传，正在处理...';
+
+                // 开始轮询处理状态
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const statusResponse = await fetch(`/api/status/${result.session_id}`);
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.status === 'completed') {
+                            clearInterval(pollInterval);
+                            progressBar.style.width = '100%';
+                            progressText.textContent = '处理完成！';
+                            
+                            // 显示结果
+                            document.getElementById('resultText').textContent = 
+                                `成功处理了 ${statusData.processed_files} 个文件`;
+                            document.getElementById('downloadBtn').href = statusData.download_url;
+                            resultArea.style.display = 'block';
+                            progressContainer.style.display = 'none';
+                            uploadBtn.disabled = false;
+                            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>开始处理';
+                        } else if (statusData.status === 'processing') {
+                            progressBar.style.width = `${50 + (statusData.progress * 50)}%`;
+                            progressText.textContent = `正在处理：${Math.round(statusData.progress * 100)}%`;
+                        } else if (statusData.status === 'error') {
+                            clearInterval(pollInterval);
+                            throw new Error(statusData.error || '处理失败');
+                        }
+                    } catch (error) {
+                        clearInterval(pollInterval);
+                        throw error;
+                    }
+                }, 1000);  // 每秒轮询一次
             } else {
                 throw new Error(result.detail || '处理失败');
             }
