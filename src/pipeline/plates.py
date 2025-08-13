@@ -125,15 +125,5 @@ class PlateBlurrer:
         return output_path
 
     def show_results(self, orig_image: np.ndarray, processed_image: np.ndarray):
-        try:
-            display_size = (800, 600)
-            orig_display = cv2.resize(orig_image, display_size)
-            processed_display = cv2.resize(processed_image, display_size)
-            comparison = np.hstack((orig_display, processed_display))
-            cv2.putText(comparison, "Original", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(comparison, "Blurred", (display_size[0] + 10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Plate Blurring Results", comparison)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-        except Exception:
-            pass
+        # 在Docker/服务器环境下跳过GUI显示
+        pass

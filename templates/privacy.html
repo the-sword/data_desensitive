@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}隐私协议 - 数据脱敏系统{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-shield-alt me-2"></i>隐私声明协议</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>重要提示：</strong>请仔细阅读本隐私声明，了解我们如何处理您的数据。
+                    </div>
+
+                    <h5>1. 数据处理原则</h5>
+                    <p>我们承诺遵循以下数据处理原则：</p>
+                    <ul>
+                        <li><strong>本地处理：</strong>所有图像处理均在本地服务器上进行，不会上传到第三方服务</li>
+                        <li><strong>临时存储：</strong>上传的文件仅在处理期间临时存储，处理完成后自动删除</li>
+                        <li><strong>用户控制：</strong>您可以完全控制是否启用脱敏功能及具体脱敏类型</li>
+                        <li><strong>透明处理：</strong>所有处理过程公开透明，使用开源AI模型</li>
+                    </ul>
+
+                    <h5>2. 支持的脱敏功能</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-user-secret fa-2x text-primary mb-2"></i>
+                                <h6>人脸脱敏</h6>
+                                <p class="small">自动检测并模糊处理人脸区域，保护个人身份信息</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-car fa-2x text-success mb-2"></i>
+                                <h6>车牌脱敏</h6>
+                                <p class="small">识别车牌号码并进行模糊处理，防止车辆信息泄露</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-font fa-2x text-warning mb-2"></i>
+                                <h6>文本脱敏</h6>
+                                <p class="small">检测街牌、标识等敏感文本并进行脱敏处理</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4">3. 技术实现</h5>
+                    <ul>
+                        <li><strong>检测技术：</strong>使用YOLOv8、RetinaFace、DBNet等开源AI模型</li>
+                        <li><strong>处理方式：</strong>支持高斯模糊、像素化等多种脱敏方法</li>
+                        <li><strong>运行环境：</strong>所有模型在CPU上运行，确保兼容性和安全性</li>
+                        <li><strong>性能优化：</strong>针对CPU进行了专门优化，处理速度快</li>
+                    </ul>
+
+                    <h5>4. 服务器选择</h5>
+                    <p>为了更好地服务全球用户，我们提供多个地区的服务器选择：</p>
+                    <ul>
+                        <li><strong>欧洲服务器：</strong>适合欧洲用户，符合GDPR规范</li>
+                        <li><strong>美国服务器：</strong>适合美洲用户，高速稳定</li>
+                        <li><strong>亚洲服务器：</strong>适合亚太地区用户，低延迟访问</li>
+                    </ul>
+
+                    <h5>5. 数据安全保障</h5>
+                    <ul>
+                        <li>使用HTTPS加密传输，确保数据传输安全</li>
+                        <li>临时文件存储采用随机文件名，防止数据泄露</li>
+                        <li>处理完成后自动清理所有临时文件</li>
+                        <li>不保留任何用户上传的原始图像数据</li>
+                        <li>不收集用户个人身份信息</li>
+                    </ul>
+
+                    <h5>6. 用户权利</h5>
+                    <p>作为用户，您享有以下权利：</p>
+                    <ul>
+                        <li><strong>选择权：</strong>可以选择是否启用脱敏功能</li>
+                        <li><strong>控制权：</strong>可以选择具体的脱敏类型和方法</li>
+                        <li><strong>删除权：</strong>可以随时要求删除处理会话数据</li>
+                        <li><strong>知情权：</strong>了解数据处理的全过程</li>
+                    </ul>
+
+                    <h5>7. 免责声明</h5>
+                    <ul>
+                        <li>本系统基于AI技术，检测准确率可能受图像质量、角度等因素影响</li>
+                        <li>建议用户在使用前自行检查处理结果</li>
+                        <li>对于AI未能检测到的敏感信息，用户需自行承担责任</li>
+                        <li>本系统仅作为辅助工具，不能完全替代人工审核</li>
+                    </ul>
+
+                    <h5>8. 联系我们</h5>
+                    <p>如果您对本隐私声明有任何疑问或建议，请通过以下方式联系我们：</p>
+                    <ul>
+                        <li>邮箱：privacy@data-anonymization.com</li>
+                        <li>电话：+86-xxx-xxxx-xxxx</li>
+                    </ul>
+
+                    <div class="alert alert-warning mt-4">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>重要提醒：</strong>使用本系统即表示您已阅读并同意本隐私声明的所有条款。
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <a href="/" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check me-2"></i>我已阅读并同意
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

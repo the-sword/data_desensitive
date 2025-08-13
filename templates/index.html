@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}数据脱敏系统 - 首页{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <!-- 隐私协议确认 -->
+    <div id="privacyModal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">隐私声明协议</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        请仔细阅读以下隐私声明，了解我们如何处理您的数据。
+                    </div>
+                    <h6>数据处理说明：</h6>
+                    <ul>
+                        <li>我们仅在您的设备上本地处理图像数据</li>
+                        <li>不会将原始图像上传到外部服务器</li>
+                        <li>脱敏处理使用开源AI模型，在CPU上运行</li>
+                        <li>处理完成后，临时文件将被自动删除</li>
+                        <li>您可以选择是否启用脱敏功能</li>
+                    </ul>
+                    <h6>支持的脱敏类型：</h6>
+                    <ul>
+                        <li><strong>人脸脱敏</strong>：自动检测并模糊人脸区域</li>
+                        <li><strong>车牌脱敏</strong>：检测并模糊车牌号码</li>
+                        <li><strong>文本脱敏</strong>：检测并模糊街牌、标识等文本</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="acceptPrivacy">我同意并继续</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主要内容 -->
+    <div id="mainContent" style="display: none;">
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="text-center mb-5">
+                    <h1 class="display-4 mb-3">
+                        <i class="fas fa-shield-alt text-primary me-3"></i>
+                        数据脱敏系统
+                    </h1>
+                    <p class="lead">智能检测并保护您图像中的敏感信息</p>
+                </div>
+
+                <!-- 服务器选择 -->
+                <div class="server-selection">
+                    <h5><i class="fas fa-server me-2"></i>选择处理服务器</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="serverRegion" id="europe" value="europe" checked>
+                                <label class="form-check-label" for="europe">
+                                    <i class="fas fa-flag me-1"></i>欧洲服务器
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="serverRegion" id="america" value="america">
+                                <label class="form-check-label" for="america">
+                                    <i class="fas fa-flag-usa me-1"></i>美国服务器
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="serverRegion" id="asia" value="asia">
+                                <label class="form-check-label" for="asia">
+                                    <i class="fas fa-flag me-1"></i>亚洲服务器
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 脱敏设置 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cog me-2"></i>脱敏设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="enableAnonymization" checked>
+                            <label class="form-check-label" for="enableAnonymization">
+                                <strong>启用数据脱敏</strong>
+                            </label>
+                        </div>
+                        
+                        <div id="anonymizationOptions">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="blurFaces" checked>
+                                        <label class="form-check-label" for="blurFaces">
+                                            <i class="fas fa-user me-1"></i>人脸脱敏
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="blurPlates" checked>
+                                        <label class="form-check-label" for="blurPlates">
+                                            <i class="fas fa-car me-1"></i>车牌脱敏
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="blurTexts" checked>
+                                        <label class="form-check-label" for="blurTexts">
+                                            <i class="fas fa-font me-1"></i>文本脱敏
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="blurMethod">
+                                        <option value="gaussian">高斯模糊</option>
+                                        <option value="pixelate">像素化</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 文件上传区域 -->
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h4>拖拽文件到此处或点击选择</h4>
+                        <p class="text-muted">支持 JPG, PNG, BMP, TIFF 格式图像</p>
+                        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                        <button type="button" class="btn btn-outline-primary" id="selectFileBtn">
+                            <i class="fas fa-folder-open me-2"></i>选择文件
+                        </button>
+                    </div>
+
+                    <!-- 文件列表 -->
+                    <div id="fileList" class="mt-3" style="display: none;"></div>
+
+                    <!-- 上传按钮 -->
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>
+                            <i class="fas fa-upload me-2"></i>开始处理
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 进度条 -->
+                <div class="progress-container">
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <span id="progressText">处理中...</span>
+                    </div>
+                </div>
+
+                <!-- 结果区域 -->
+                <div id="resultArea" class="mt-4" style="display: none;">
+                    <div class="alert alert-success">
+                        <h5><i class="fas fa-check-circle me-2"></i>处理完成！</h5>
+                        <p id="resultText"></p>
+                        <div class="mt-3">
+                            <a id="downloadBtn" class="btn btn-success me-2" href="#" download>
+                                <i class="fas fa-download me-2"></i>下载处理后的文件
+                            </a>
+                            <button class="btn btn-outline-secondary" onclick="location.reload()">
+                                <i class="fas fa-redo me-2"></i>重新开始
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能介绍 -->
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card feature-card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-secret fa-3x text-primary mb-3"></i>
+                    <h5>人脸保护</h5>
+                    <p>自动检测图像中的人脸并进行模糊处理，保护个人隐私</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card feature-card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-car fa-3x text-success mb-3"></i>
+                    <h5>车牌脱敏</h5>
+                    <p>智能识别车牌号码并进行模糊处理，防止车辆信息泄露</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card feature-card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-font fa-3x text-warning mb-3"></i>
+                    <h5>文本保护</h5>
+                    <p>检测街牌、标识等敏感文本信息并进行脱敏处理</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 显示隐私协议
+    const privacyModal = new bootstrap.Modal(document.getElementById('privacyModal'));
+    privacyModal.show();
+
+    // 同意隐私协议
+    document.getElementById('acceptPrivacy').addEventListener('click', function() {
+        privacyModal.hide();
+        document.getElementById('mainContent').style.display = 'block';
+    });
+
+    // 文件上传相关
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadForm = document.getElementById('uploadForm');
+    const progressContainer = document.querySelector('.progress-container');
+    const progressBar = document.querySelector('.progress-bar');
+    const progressText = document.getElementById('progressText');
+    const resultArea = document.getElementById('resultArea');
+
+    // 脱敏选项控制
+    const enableAnonymization = document.getElementById('enableAnonymization');
+    const anonymizationOptions = document.getElementById('anonymizationOptions');
+    
+    enableAnonymization.addEventListener('change', function() {
+        anonymizationOptions.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // 拖拽上传
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    });
+
+    uploadArea.addEventListener('click', function(e) {
+        // 只有点击上传区域本身时才触发，避免按钮双重触发
+        if (e.target === uploadArea || uploadArea.contains(e.target) && !e.target.closest('#selectFileBtn')) {
+            fileInput.click();
+        }
+    });
+
+    // 单独处理按钮点击
+    document.getElementById('selectFileBtn').addEventListener('click', function(e) {
+        e.stopPropagation(); // 阻止事件冒泡
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+
+    function handleFiles(files) {
+        if (files.length === 0) return;
+
+        fileList.innerHTML = '';
+        fileList.style.display = 'block';
+
+        for (let file of files) {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'alert alert-info d-flex justify-content-between align-items-center';
+            fileItem.innerHTML = `
+                <span><i class="fas fa-file-image me-2"></i>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                <span class="badge bg-primary">${file.type}</span>
+            `;
+            fileList.appendChild(fileItem);
+        }
+
+        uploadBtn.disabled = false;
+    }
+
+    // 表单提交
+    uploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData();
+        const files = fileInput.files;
+
+        if (files.length === 0) {
+            alert('请选择文件');
+            return;
+        }
+
+        // 添加文件
+        for (let file of files) {
+            formData.append('files', file);
+        }
+
+        // 添加设置
+        formData.append('enable_anonymization', enableAnonymization.checked);
+        formData.append('server_region', document.querySelector('input[name="serverRegion"]:checked').value);
+        formData.append('blur_faces', document.getElementById('blurFaces').checked);
+        formData.append('blur_plates', document.getElementById('blurPlates').checked);
+        formData.append('blur_texts', document.getElementById('blurTexts').checked);
+        formData.append('blur_method', document.getElementById('blurMethod').value);
+
+        // 显示进度
+        progressContainer.style.display = 'block';
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>处理中...';
+
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                progressBar.style.width = '100%';
+                progressText.textContent = '处理完成！';
+                
+                // 显示结果
+                document.getElementById('resultText').textContent = 
+                    `成功处理了 ${result.processed_files} 个文件`;
+                document.getElementById('downloadBtn').href = result.download_url;
+                resultArea.style.display = 'block';
+                
+                progressContainer.style.display = 'none';
+            } else {
+                throw new Error(result.detail || '处理失败');
+            }
+        } catch (error) {
+            alert('处理失败: ' + error.message);
+            progressContainer.style.display = 'none';
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>开始处理';
+        }
+    });
+});
+</script>
+{% endblock %}
