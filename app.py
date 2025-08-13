@@ -9,6 +9,7 @@ import sys
 import shutil
 import tempfile
 import zipfile
+import mimetypes
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
@@ -261,6 +262,42 @@ async def remote_list(request: Request, region: str):
             if p.is_dir():
                 folders.append(p.name)
     return {"region": region, "folders": folders}
+
+@app.get("/remote/files")
+async def remote_files(request: Request, region: str, folder: str):
+    if not _get_user_from_cookie(request):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    base_dir = _safe_region_to_dir(region)
+    src_dir = base_dir / folder
+    if not src_dir.exists() or not src_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    files = []
+    try:
+        for p in sorted(src_dir.iterdir(), key=lambda x: x.name):
+            if p.is_file():
+                try:
+                    stat = p.stat()
+                    files.append({
+                        "name": p.name,
+                        "size": stat.st_size
+                    })
+                except Exception:
+                    files.append({"name": p.name, "size": None})
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error listing files")
+    return {"region": region, "folder": folder, "files": files}
+
+@app.get("/remote/file")
+async def remote_file(request: Request, region: str, folder: str, name: str):
+    if not _get_user_from_cookie(request):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    base_dir = _safe_region_to_dir(region)
+    file_path = base_dir / folder / name
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    # Guess media type for proper inline display
+    media_type, _ = mimetypes.guess_type(str(file_path))
+    return FileResponse(path=str(file_path), media_type=media_type or "application/octet-stream")
 
 @app.get("/remote/download")
 async def remote_download(request: Request, region: str, folder: str, background_tasks: BackgroundTasks):

@@ -52,10 +52,22 @@
       </div>
 
       <div class="row g-3">
-        <div class="col-12">
+        <div class="col-md-3">
           <label class="form-label mb-2">{{ t('remote_select_folder') }}</label>
           <div id="folderList" class="list-group list-fixed"></div>
           <div id="listStatus" class="text-muted small mt-2"></div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label mb-2">Files</label>
+          <div id="fileList" class="list-group list-fixed"></div>
+          <div id="fileStatus" class="text-muted small mt-2"></div>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label mb-2">Preview</label>
+          <div id="previewArea2" class="border rounded p-2 bg-light text-center preview-area">
+            <img id="previewImg2" alt="preview2" class="img-fluid d-none" />
+            <div id="previewHint2" class="text-muted small">Select an image to preview</div>
+          </div>
         </div>
       </div>
     </div>
@@ -72,9 +84,13 @@
   if (!authed) return;
   const regionEl = document.getElementById('regionSelect');
   const folderListEl = document.getElementById('folderList');
+  const fileListEl = document.getElementById('fileList');
   const refreshBtn = document.getElementById('refreshBtn');
   const downloadBtn = document.getElementById('downloadBtn');
   const statusEl = document.getElementById('listStatus');
+  const fileStatusEl = document.getElementById('fileStatus');
+  const previewImg2 = document.getElementById('previewImg2');
+  const previewHint2 = document.getElementById('previewHint2');
   let selectedFolder = '';
 
   async function loadFolders(){
@@ -82,6 +98,8 @@
     statusEl.textContent = '...';
     selectedFolder = '';
     folderListEl.innerHTML = '';
+    fileListEl.innerHTML = '';
+    fileStatusEl.textContent = '';
     try {
       const resp = await fetch(`/remote/list?region=${encodeURIComponent(region)}`);
       if (!resp.ok) throw new Error('Failed');
@@ -98,13 +116,93 @@
           [...folderListEl.querySelectorAll('.list-group-item')].forEach(item=> item.classList.remove('active'));
           a.classList.add('active');
           selectedFolder = name;
+          loadFiles();
         });
         folderListEl.appendChild(a);
       });
       statusEl.textContent = `${folders.length} folders`;
+      // auto select first folder
+      if (folders.length > 0) {
+        const first = folderListEl.querySelector('.list-group-item');
+        if (first) {
+          first.classList.add('active');
+          selectedFolder = first.textContent;
+          await loadFiles();
+        }
+      }
     } catch(e){
       statusEl.textContent = 'Error loading folders';
     }
+  }
+
+  async function loadFiles(){
+    const region = regionEl.value;
+    const folder = selectedFolder;
+    if (!folder){
+      fileListEl.innerHTML = '';
+      fileStatusEl.textContent = '';
+      clearPreview();
+      return;
+    }
+    fileStatusEl.textContent = '...';
+    fileListEl.innerHTML = '';
+    clearPreview();
+    try {
+      const resp = await fetch(`/remote/files?region=${encodeURIComponent(region)}&folder=${encodeURIComponent(folder)}`);
+      if (!resp.ok) throw new Error('Failed');
+      const data = await resp.json();
+      const files = Array.isArray(data.files) ? data.files : [];
+      files.forEach(f => {
+        const a = document.createElement('a');
+        a.href = '#';
+        a.className = 'list-group-item list-group-item-action';
+        const size = (typeof f.size === 'number') ? ` (${f.size} B)` : '';
+        a.textContent = `${f.name}${size}`;
+        a.addEventListener('click', (e)=>{
+          e.preventDefault();
+          // set active
+          [...fileListEl.querySelectorAll('.list-group-item')].forEach(item=> item.classList.remove('active'));
+          a.classList.add('active');
+          showPreview(f.name);
+        });
+        fileListEl.appendChild(a);
+      });
+      fileStatusEl.textContent = `${files.length} files`;
+      // auto preview first image
+      const firstImg = files.find(f => isImageName(f.name));
+      if (firstImg) {
+        const toActivate = [...fileListEl.querySelectorAll('.list-group-item')].find(el => el.textContent.startsWith(firstImg.name));
+        if (toActivate) toActivate.classList.add('active');
+        showPreview(firstImg.name);
+      } else {
+        clearPreview();
+      }
+    } catch(e){
+      fileStatusEl.textContent = 'Error loading files';
+    }
+  }
+
+  function isImageName(name){
+    return /\.(png|jpe?g|bmp|gif|webp|tiff?)$/i.test(name);
+  }
+
+  function clearPreview(){
+    previewImg2.src = '';
+    previewImg2.classList.add('d-none');
+    previewHint2.textContent = 'Select an image to preview';
+  }
+
+  function showPreview(fileName){
+    if (!isImageName(fileName)){
+      clearPreview();
+      previewHint2.textContent = 'Not an image file';
+      return;
+    }
+    const region = regionEl.value;
+    const url = `/remote/file?region=${encodeURIComponent(region)}&folder=${encodeURIComponent(selectedFolder)}&name=${encodeURIComponent(fileName)}`;
+    previewImg2.src = url;
+    previewImg2.classList.remove('d-none');
+    previewHint2.textContent = fileName;
   }
 
   refreshBtn.addEventListener('click', (e)=>{ e.preventDefault(); loadFolders(); });
