@@ -1,11 +1,11 @@
 import cv2
 import numpy as np
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 class FaceBlurrer:
-    def __init__(self, warmup: bool = True, backend: str = "yolov8_face", weights_path: str | None = None):
+    def __init__(self, warmup: bool = True, backend: str = "yolov8_face", weights_path: Optional[str] = None):
         """
         支持多后端的人脸检测与模糊（CPU 友好）。
 

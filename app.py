@@ -5,6 +5,7 @@
 """
 
 import os
+import sys
 import shutil
 import tempfile
 import zipfile
@@ -226,7 +227,8 @@ async def health_check():
 
 if __name__ == "__main__":
     # 配置日志
-    logger.add("logs/app.log", rotation="1 day", retention="7 days")
+    # Use stdout for Docker logging
+    logger.add(sys.stdout, colorize=True)
     
     # 启动服务器
     uvicorn.run(

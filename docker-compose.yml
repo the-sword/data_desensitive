@@ -9,6 +9,8 @@ services:
     volumes:
       # 持久化存储模型文件
       - ./models:/app/models:ro
+      # DBNet repository mount
+      - ./src/DBNet:/app/DBNet:ro
       # 持久化日志
       - ./logs:/app/logs
       # 可选：挂载数据目录用于批量处理
@@ -29,6 +31,7 @@ services:
       resources:
         limits:
           memory: 4G
+          cpus: '2.0'
         reservations:
           memory: 2G
 
