@@ -135,6 +135,19 @@
 
                 <!-- 文件上传区域 -->
                 <form id="uploadForm" enctype="multipart/form-data">
+                    <!-- 选择模式：文件 或 文件夹 -->
+                    <div class="mb-3 d-flex align-items-center gap-3">
+                        <label class="me-2 mb-0"><i class="fas fa-folder me-1"></i>选择模式：</label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="pickMode" id="modeFile" value="file" checked>
+                            <label class="form-check-label" for="modeFile">文件</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="pickMode" id="modeFolder" value="folder">
+                            <label class="form-check-label" for="modeFolder">文件夹</label>
+                        </div>
+                        <small class="text-muted">提示：拖拽暂不支持整夹拖入，请使用“选择文件”按钮选择文件夹</small>
+                    </div>
                     <div class="upload-area" id="uploadArea">
                         <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                         <h4>拖拽文件到此处或点击选择</h4>
@@ -234,6 +247,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // 文件上传相关
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
+    const modeFile = document.getElementById('modeFile');
+    const modeFolder = document.getElementById('modeFolder');
+
+    function applyPickMode() {
+        if (modeFolder && modeFolder.checked) {
+            // 启用选择文件夹（浏览器需支持 webkitdirectory）
+            fileInput.setAttribute('webkitdirectory', '');
+            fileInput.setAttribute('directory', '');
+            fileInput.setAttribute('multiple', '');
+        } else {
+            // 仅选择文件
+            fileInput.removeAttribute('webkitdirectory');
+            fileInput.removeAttribute('directory');
+            fileInput.setAttribute('multiple', '');
+        }
+    }
+
+    if (modeFile && modeFolder) {
+        modeFile.addEventListener('change', applyPickMode);
+        modeFolder.addEventListener('change', applyPickMode);
+        // 初始化一次
+        applyPickMode();
+    }
     const fileList = document.getElementById('fileList');
     const uploadBtn = document.getElementById('uploadBtn');
     const uploadForm = document.getElementById('uploadForm');
@@ -261,11 +297,21 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadArea.classList.remove('dragover');
     });
 
-    uploadArea.addEventListener('drop', function(e) {
+    uploadArea.addEventListener('drop', async function(e) {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
-        const files = e.dataTransfer.files;
-        handleFiles(files);
+
+        const dt = e.dataTransfer;
+        // 优先使用 DataTransferItem 以支持目录遍历
+        if (dt && dt.items && dt.items.length && dt.items[0].webkitGetAsEntry) {
+            const items = Array.from(dt.items);
+            const files = await collectFilesFromItems(items);
+            handleFiles(files);
+        } else {
+            // 回退到传统的 files 列表（仅文件拖拽可用）
+            const files = dt.files;
+            handleFiles(files);
+        }
     });
 
     uploadArea.addEventListener('click', function(e) {
@@ -281,6 +327,9 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.click();
     });
 
+    // 当前选择的文件集合（支持文件或文件夹拖拽/选择）
+    let selectedFiles = [];
+
     fileInput.addEventListener('change', function() {
         handleFiles(this.files);
     });
@@ -293,13 +342,57 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
     }
 
+    // 递归读取目录内所有条目
+    async function readAllDirEntries(dirReader) {
+        const entries = [];
+        let batch;
+        do {
+            batch = await new Promise(resolve => dirReader.readEntries(resolve));
+            entries.push(...batch);
+        } while (batch.length);
+        return entries;
+    }
+
+    async function traverseEntry(entry) {
+        if (entry.isFile) {
+            return await new Promise(resolve => entry.file(file => resolve([file])));
+        }
+        if (entry.isDirectory) {
+            const reader = entry.createReader();
+            const entries = await readAllDirEntries(reader);
+            const nested = await Promise.all(entries.map(traverseEntry));
+            return nested.flat();
+        }
+        return [];
+    }
+
+    async function collectFilesFromItems(items) {
+        const all = await Promise.all(items.map(async (item) => {
+            const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+            if (entry) {
+                return await traverseEntry(entry);
+            }
+            const f = item.getAsFile ? item.getAsFile() : null;
+            return f ? [f] : [];
+        }));
+        return all.flat();
+    }
+
     function handleFiles(files) {
         if (files.length === 0) return;
+
+        // 标准化为数组并保存（用于实际上传）
+        const filesArr = Array.from(files);
+        selectedFiles = filesArr;
+
+        const DISPLAY_LIMIT = 20; // 仅展示前 N 个，避免大批量文件卡顿
 
         fileList.innerHTML = '';
         fileList.style.display = 'block';
 
-        for (let file of files) {
+        // 仅展示前 DISPLAY_LIMIT 个
+        const toShow = filesArr.slice(0, DISPLAY_LIMIT);
+        for (let file of toShow) {
             const fileItem = document.createElement('div');
             fileItem.className = 'alert alert-info d-flex justify-content-between align-items-center';
             fileItem.innerHTML = `
@@ -307,6 +400,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="badge bg-primary">${file.type}</span>
             `;
             fileList.appendChild(fileItem);
+        }
+
+        // 如果超出展示上限，添加汇总提示
+        if (filesArr.length > DISPLAY_LIMIT) {
+            const more = filesArr.length - DISPLAY_LIMIT;
+            const notice = document.createElement('div');
+            notice.className = 'alert alert-secondary';
+            notice.innerHTML = `<i class="fas fa-ellipsis-h me-2"></i>还有 ${more} 个文件未显示...`;
+            fileList.appendChild(notice);
         }
 
         uploadBtn.disabled = false;
@@ -317,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         const formData = new FormData();
-        const files = fileInput.files;
+        const files = (selectedFiles && selectedFiles.length) ? selectedFiles : Array.from(fileInput.files);
 
         if (files.length === 0) {
             alert('请选择文件');
