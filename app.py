@@ -14,8 +14,8 @@ from typing import List, Optional
 from datetime import datetime
 import uuid
 
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request, BackgroundTasks
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
@@ -96,7 +96,20 @@ TRANSLATIONS = {
     # Nav and footer
     "home_nav": {"zh": "首页", "en": "Home"},
     "privacy_nav": {"zh": "隐私协议", "en": "Privacy"},
+    "remote_nav": {"zh": "远程访问", "en": "Remote"},
     "footer_text": {"zh": "© 2024 数据脱敏系统. 保护您的隐私数据.", "en": "© 2024 Data Anonymization System. Protect your privacy data."},
+    # Remote page
+    "remote_title": {"zh": "远程访问", "en": "Remote Access"},
+    "remote_login": {"zh": "登录访问服务器数据", "en": "Log in to access server data"},
+    "remote_username": {"zh": "用户名", "en": "Username"},
+    "remote_password": {"zh": "密码", "en": "Password"},
+    "remote_signin": {"zh": "登录", "en": "Sign In"},
+    "remote_logout": {"zh": "退出", "en": "Log Out"},
+    "remote_select_region": {"zh": "选择服务器区域", "en": "Select Server Region"},
+    "remote_select_folder": {"zh": "选择要下载的文件夹", "en": "Select a folder to download"},
+    "remote_refresh": {"zh": "刷新列表", "en": "Refresh List"},
+    "remote_download": {"zh": "下载所选文件夹", "en": "Download Selected Folder"},
+    "remote_invalid": {"zh": "用户名或密码错误", "en": "Invalid username or password"},
 }
 
 def translate(key: str, lang: str = "zh") -> str:
@@ -126,6 +139,27 @@ REGION_MAP = {
     "europe": "un",
     "asia": "asia",
 }
+
+# 远程访问简单认证配置与会话
+REMOTE_USER = os.getenv("REMOTE_USER", "admin")
+REMOTE_PASS = os.getenv("REMOTE_PASS", "admin123")
+_SESSIONS: dict[str, str] = {}
+
+def _new_session(username: str) -> str:
+    token = uuid.uuid4().hex
+    _SESSIONS[token] = username
+    return token
+
+def _get_user_from_cookie(request: Request) -> Optional[str]:
+    token = request.cookies.get("remote_session")
+    if token and token in _SESSIONS:
+        return _SESSIONS[token]
+    return None
+
+def _safe_region_to_dir(region: str) -> Path:
+    if region not in REGION_MAP:
+        raise HTTPException(status_code=400, detail="Invalid region")
+    return UPLOAD_DIR / REGION_MAP[region]
 
 # 确保目录存在
 for dir_path in [UPLOAD_DIR, OUTPUT_DIR, TEMP_DIR]:
@@ -180,6 +214,73 @@ async def index(request: Request):
     response = templates.TemplateResponse("index.html", context)
     response.set_cookie("lang", lang, max_age=3600*24*365)
     return response
+
+@app.get("/remote", response_class=HTMLResponse)
+async def remote_page(request: Request):
+    lang = get_lang_from_request(request)
+    def t(key: str):
+        return translate(key, lang)
+    authed_user = _get_user_from_cookie(request)
+    context = {"request": request, "lang": lang, "t": t, "authed": bool(authed_user), "username": authed_user or ""}
+    response = templates.TemplateResponse("remote.html", context)
+    response.set_cookie("lang", lang, max_age=3600*24*365)
+    return response
+
+@app.post("/remote/login")
+async def remote_login(request: Request, username: str = Form(...), password: str = Form(...)):
+    lang = get_lang_from_request(request)
+    if username == REMOTE_USER and password == REMOTE_PASS:
+        token = _new_session(username)
+        resp = RedirectResponse(url="/remote", status_code=302)
+        resp.set_cookie("remote_session", token, httponly=True, max_age=3600*8)
+        resp.set_cookie("lang", lang, max_age=3600*24*365)
+        return resp
+    def t(key: str):
+        return translate(key, lang)
+    context = {"request": request, "lang": lang, "t": t, "authed": False, "login_error": translate("remote_invalid", lang)}
+    return templates.TemplateResponse("remote.html", context)
+
+@app.post("/remote/logout")
+async def remote_logout(request: Request):
+    token = request.cookies.get("remote_session")
+    if token and token in _SESSIONS:
+        _SESSIONS.pop(token, None)
+    resp = RedirectResponse(url="/remote", status_code=302)
+    resp.delete_cookie("remote_session")
+    return resp
+
+@app.get("/remote/list")
+async def remote_list(request: Request, region: str):
+    if not _get_user_from_cookie(request):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    target = _safe_region_to_dir(region)
+    target.mkdir(parents=True, exist_ok=True)
+    folders = []
+    if target.exists():
+        for p in sorted(target.iterdir(), key=lambda x: x.name, reverse=True):
+            if p.is_dir():
+                folders.append(p.name)
+    return {"region": region, "folders": folders}
+
+@app.get("/remote/download")
+async def remote_download(request: Request, region: str, folder: str):
+    if not _get_user_from_cookie(request):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    base_dir = _safe_region_to_dir(region)
+    src_dir = base_dir / folder
+    if not src_dir.exists() or not src_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    tmp_dir = Path(tempfile.gettempdir())
+    zip_path = tmp_dir / f"{folder}.zip"
+    if zip_path.exists():
+        zip_path.unlink()
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(src_dir):
+            for f in files:
+                full = Path(root) / f
+                arcname = str(full.relative_to(src_dir))
+                zf.write(full, arcname)
+    return FileResponse(path=str(zip_path), filename=f"{folder}.zip")
 
 @app.get("/privacy", response_class=HTMLResponse)
 async def privacy_agreement(request: Request):
