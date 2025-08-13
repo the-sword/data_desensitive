@@ -194,9 +194,6 @@
                         <h5><i class="fas fa-check-circle me-2"></i>{{ t('completed') }}</h5>
                         <p id="resultText"></p>
                         <div class="mt-3">
-                            <a id="downloadBtn" class="btn btn-success me-2" href="#" download>
-                                <i class="fas fa-download me-2"></i>{{ t('download_processed') }}
-                            </a>
                             <button class="btn btn-outline-secondary" onclick="location.reload()">
                                 <i class="fas fa-redo me-2"></i>{{ t('restart') }}
                             </button>
@@ -498,7 +495,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             // 显示结果
                             document.getElementById('resultText').textContent =
                                 MSG_PROCESSED_COUNT.replace('{n}', statusData.processed_files);
-                            document.getElementById('downloadBtn').href = statusData.download_url;
                             resultArea.style.display = 'block';
                             progressContainer.style.display = 'none';
                             uploadBtn.disabled = false;
@@ -521,6 +517,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             alert(MSG_PROCESSING_FAILED + ': ' + error.message);
             progressContainer.style.display = 'none';
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>' + MSG_START;
             uploadBtn.disabled = false;
             uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>' + MSG_START;
         }

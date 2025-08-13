@@ -263,7 +263,7 @@ async def remote_list(request: Request, region: str):
     return {"region": region, "folders": folders}
 
 @app.get("/remote/download")
-async def remote_download(request: Request, region: str, folder: str):
+async def remote_download(request: Request, region: str, folder: str, background_tasks: BackgroundTasks):
     if not _get_user_from_cookie(request):
         raise HTTPException(status_code=401, detail="Unauthorized")
     base_dir = _safe_region_to_dir(region)
@@ -280,6 +280,14 @@ async def remote_download(request: Request, region: str, folder: str):
                 full = Path(root) / f
                 arcname = str(full.relative_to(src_dir))
                 zf.write(full, arcname)
+    # 下载后自动删除临时zip文件
+    def _cleanup_zip(p: str):
+        try:
+            if os.path.exists(p):
+                os.remove(p)
+        except Exception:
+            pass
+    background_tasks.add_task(_cleanup_zip, str(zip_path))
     return FileResponse(path=str(zip_path), filename=f"{folder}.zip")
 
 @app.get("/privacy", response_class=HTMLResponse)
@@ -296,6 +304,7 @@ async def privacy_agreement(request: Request):
 @app.post("/api/upload")
 async def upload_files(
     request: Request,
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     enable_anonymization: bool = Form(True),
     server_region: str = Form("europe"),
@@ -360,19 +369,19 @@ async def upload_files(
                 except Exception as e:
                     logger.error(f"复制文件 {file_path.name} 到 {target_dir} 时出错: {e}")
 
-            # 为方便用户依旧提供下载包（从目标目录打包）
-            zip_path = session_dir / "processed_files.zip"
-            with zipfile.ZipFile(zip_path, 'w') as zipf:
-                for f in target_dir.iterdir():
-                    if f.is_file():
-                        zipf.write(f, f.name)
-
             PROCESSING_SESSIONS[session_id]["progress"] = 1.0
+            # 处理完成后清理会话临时目录
+            def _cleanup_session_dir(p: str):
+                try:
+                    if os.path.isdir(p):
+                        shutil.rmtree(p, ignore_errors=True)
+                except Exception:
+                    pass
+            background_tasks.add_task(_cleanup_session_dir, str(session_dir))
             return JSONResponse({
                 "success": True,
                 "session_id": session_id,
                 "processed_files": processed_count,
-                "download_url": f"/api/download/{session_id}",
                 "target_dir": str(target_dir)
             })
 
@@ -427,18 +436,19 @@ async def upload_files(
                 except Exception as e:
                     logger.error(f"复制处理结果 {f.name} 到 {target_dir} 时出错: {e}")
         
-        # 创建下载包
-        zip_path = session_dir / "processed_files.zip"
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            for file_path in output_dir.iterdir():
-                if file_path.is_file():
-                    zipf.write(file_path, file_path.name)
-        
+        # 处理完成后清理会话临时目录
+        def _cleanup_session_dir(p: str):
+            try:
+                if os.path.isdir(p):
+                    shutil.rmtree(p, ignore_errors=True)
+            except Exception:
+                pass
+        background_tasks.add_task(_cleanup_session_dir, str(session_dir))
+
         return JSONResponse({
             "success": True,
             "session_id": session_id,
             "processed_files": len(list(output_dir.iterdir())),
-            "download_url": f"/api/download/{session_id}",
             "target_dir": str(target_dir)
         })
         
@@ -450,7 +460,7 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
 
 @app.get("/api/download/{session_id}")
-async def download_processed_files(session_id: str):
+async def download_processed_files(session_id: str, background_tasks: BackgroundTasks):
     """下载处理后的文件"""
     session_dir = TEMP_DIR / session_id
     zip_path = session_dir / "processed_files.zip"
@@ -458,6 +468,15 @@ async def download_processed_files(session_id: str):
     if not zip_path.exists():
         raise HTTPException(status_code=404, detail="文件不存在或已过期")
     
+    # 下载后自动删除该会话的临时目录
+    def _cleanup_session(p: str):
+        try:
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+        except Exception:
+            pass
+    background_tasks.add_task(_cleanup_session, str(session_dir))
+
     return FileResponse(
         zip_path,
         media_type="application/zip",
@@ -487,10 +506,9 @@ async def check_processing_status(session_id: str):
     
     session_status = PROCESSING_SESSIONS[session_id]
     
-    # 如果处理完成，返回下载链接
+    # 如果处理完成
     if session_status["progress"] >= 1:
         session_status["status"] = "completed"
-        session_status["download_url"] = f"/api/download/{session_id}"
     
     return session_status
 
