@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}数据脱敏系统 - 首页{% endblock %}
+{% block title %}{{ t('app_title') }}{% endblock %}
 
 {% block content %}
 <div class="container my-5">
@@ -9,32 +9,32 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">隐私声明协议</h5>
+                    <h5 class="modal-title">{{ t('privacy_title') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        请仔细阅读以下隐私声明，了解我们如何处理您的数据。
+                        {{ t('privacy_read') }}
                     </div>
-                    <h6>数据处理说明：</h6>
+                    <h6>{{ t('privacy_data_info') }}</h6>
                     <ul>
-                        <li>我们仅在您的设备上本地处理图像数据</li>
-                        <li>不会将原始图像上传到外部服务器</li>
-                        <li>脱敏处理使用开源AI模型，在CPU上运行</li>
-                        <li>处理完成后，临时文件将被自动删除</li>
-                        <li>您可以选择是否启用脱敏功能</li>
+                        <li>{{ t('privacy_local') }}</li>
+                        <li>{{ t('privacy_no_upload') }}</li>
+                        <li>{{ t('privacy_models') }}</li>
+                        <li>{{ t('privacy_cleanup') }}</li>
+                        <li>{{ t('privacy_optional') }}</li>
                     </ul>
-                    <h6>支持的脱敏类型：</h6>
+                    <h6>{{ t('privacy_types') }}</h6>
                     <ul>
-                        <li><strong>人脸脱敏</strong>：自动检测并模糊人脸区域</li>
-                        <li><strong>车牌脱敏</strong>：检测并模糊车牌号码</li>
-                        <li><strong>文本脱敏</strong>：检测并模糊街牌、标识等文本</li>
+                        <li>{{ t('privacy_face') }}</li>
+                        <li>{{ t('privacy_plate') }}</li>
+                        <li>{{ t('privacy_text') }}</li>
                     </ul>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="acceptPrivacy">我同意并继续</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('btn_cancel') }}</button>
+                    <button type="button" class="btn btn-primary" id="acceptPrivacy">{{ t('btn_agree') }}</button>
                 </div>
             </div>
         </div>
@@ -44,23 +44,32 @@
     <div id="mainContent" style="display: none;">
         <div class="row">
             <div class="col-lg-8 mx-auto">
-                <div class="text-center mb-5">
+                <div class="text-center mb-5 d-flex justify-content-between align-items-start flex-wrap">
                     <h1 class="display-4 mb-3">
                         <i class="fas fa-shield-alt text-primary me-3"></i>
-                        数据脱敏系统
+                        {{ t('app_title') }}
                     </h1>
-                    <p class="lead">智能检测并保护您图像中的敏感信息</p>
+                    <p class="lead">{{ t('app_lead') }}</p>
+
+                    <!-- 语言选择 -->
+                    <div class="ms-auto">
+                        <label for="langSelect" class="form-label me-2 mb-0"><i class="fas fa-globe me-1"></i>{{ t('lang_label') }}</label>
+                        <select id="langSelect" class="form-select form-select-sm d-inline-block w-auto">
+                            <option value="zh" {{ 'selected' if lang == 'zh' else '' }}>中文</option>
+                            <option value="en" {{ 'selected' if lang == 'en' else '' }}>English</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- 服务器选择 -->
                 <div class="server-selection">
-                    <h5><i class="fas fa-server me-2"></i>选择处理服务器</h5>
+                    <h5><i class="fas fa-server me-2"></i>{{ t('select_server') }}</h5>
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="serverRegion" id="europe" value="europe" checked>
                                 <label class="form-check-label" for="europe">
-                                    <i class="fas fa-flag me-1"></i>欧洲服务器
+                                    <i class="fas fa-flag me-1"></i>{{ t('server_europe') }}
                                 </label>
                             </div>
                         </div>
@@ -68,7 +77,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="serverRegion" id="america" value="america">
                                 <label class="form-check-label" for="america">
-                                    <i class="fas fa-flag-usa me-1"></i>美国服务器
+                                    <i class="fas fa-flag-usa me-1"></i>{{ t('server_america') }}
                                 </label>
                             </div>
                         </div>
@@ -76,7 +85,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="serverRegion" id="asia" value="asia">
                                 <label class="form-check-label" for="asia">
-                                    <i class="fas fa-flag me-1"></i>亚洲服务器
+                                    <i class="fas fa-flag me-1"></i>{{ t('server_asia') }}
                                 </label>
                             </div>
                         </div>
@@ -86,13 +95,13 @@
                 <!-- 脱敏设置 -->
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-cog me-2"></i>脱敏设置</h5>
+                        <h5 class="mb-0"><i class="fas fa-cog me-2"></i>{{ t('settings_title') }}</h5>
                     </div>
                     <div class="card-body">
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" id="enableAnonymization" checked>
                             <label class="form-check-label" for="enableAnonymization">
-                                <strong>启用数据脱敏</strong>
+                                <strong>{{ t('enable_anonymization') }}</strong>
                             </label>
                         </div>
                         
@@ -102,7 +111,7 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="blurFaces" checked>
                                         <label class="form-check-label" for="blurFaces">
-                                            <i class="fas fa-user me-1"></i>人脸脱敏
+                                            <i class="fas fa-user me-1"></i>{{ t('face_blur') }}
                                         </label>
                                     </div>
                                 </div>
@@ -110,7 +119,7 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="blurPlates" checked>
                                         <label class="form-check-label" for="blurPlates">
-                                            <i class="fas fa-car me-1"></i>车牌脱敏
+                                            <i class="fas fa-car me-1"></i>{{ t('plate_blur') }}
                                         </label>
                                     </div>
                                 </div>
@@ -118,14 +127,14 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="blurTexts" checked>
                                         <label class="form-check-label" for="blurTexts">
-                                            <i class="fas fa-font me-1"></i>文本脱敏
+                                            <i class="fas fa-font me-1"></i>{{ t('text_blur') }}
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <select class="form-select" id="blurMethod">
-                                        <option value="gaussian">高斯模糊</option>
-                                        <option value="pixelate">像素化</option>
+                                        <option value="gaussian">{{ t('blur_gaussian') }}</option>
+                                        <option value="pixelate">{{ t('blur_pixelate') }}</option>
                                     </select>
                                 </div>
                             </div>
@@ -137,24 +146,24 @@
                 <form id="uploadForm" enctype="multipart/form-data">
                     <!-- 选择模式：文件 或 文件夹 -->
                     <div class="mb-3 d-flex align-items-center gap-3">
-                        <label class="me-2 mb-0"><i class="fas fa-folder me-1"></i>选择模式：</label>
+                        <label class="me-2 mb-0"><i class="fas fa-folder me-1"></i>{{ t('pick_mode') }}</label>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio" name="pickMode" id="modeFile" value="file" checked>
-                            <label class="form-check-label" for="modeFile">文件</label>
+                            <label class="form-check-label" for="modeFile">{{ t('pick_file') }}</label>
                         </div>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio" name="pickMode" id="modeFolder" value="folder">
-                            <label class="form-check-label" for="modeFolder">文件夹</label>
+                            <label class="form-check-label" for="modeFolder">{{ t('pick_folder') }}</label>
                         </div>
-                        <small class="text-muted">提示：拖拽暂不支持整夹拖入，请使用“选择文件”按钮选择文件夹</small>
+                        <small class="text-muted">{{ t('pick_hint') }}</small>
                     </div>
                     <div class="upload-area" id="uploadArea">
                         <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                        <h4>拖拽文件到此处或点击选择</h4>
-                        <p class="text-muted">支持 JPG, PNG, BMP, TIFF 格式图像</p>
+                        <h4>{{ t('upload_drop_hint') }}</h4>
+                        <p class="text-muted">{{ t('upload_types_hint') }}</p>
                         <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
                         <button type="button" class="btn btn-outline-primary" id="selectFileBtn">
-                            <i class="fas fa-folder-open me-2"></i>选择文件
+                            <i class="fas fa-folder-open me-2"></i>{{ t('select_files_btn') }}
                         </button>
                     </div>
 
@@ -164,7 +173,7 @@
                     <!-- 上传按钮 -->
                     <div class="text-center mt-4">
                         <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>
-                            <i class="fas fa-upload me-2"></i>开始处理
+                            <i class="fas fa-upload me-2"></i>{{ t('start_btn') }}
                         </button>
                     </div>
                 </form>
@@ -175,21 +184,21 @@
                         <div class="progress-bar" role="progressbar" style="width: 0%"></div>
                     </div>
                     <div class="text-center mt-2">
-                        <span id="progressText">处理中...</span>
+                        <span id="progressText">{{ t('processing') }}</span>
                     </div>
                 </div>
 
                 <!-- 结果区域 -->
                 <div id="resultArea" class="mt-4" style="display: none;">
                     <div class="alert alert-success">
-                        <h5><i class="fas fa-check-circle me-2"></i>处理完成！</h5>
+                        <h5><i class="fas fa-check-circle me-2"></i>{{ t('completed') }}</h5>
                         <p id="resultText"></p>
                         <div class="mt-3">
                             <a id="downloadBtn" class="btn btn-success me-2" href="#" download>
-                                <i class="fas fa-download me-2"></i>下载处理后的文件
+                                <i class="fas fa-download me-2"></i>{{ t('download_processed') }}
                             </a>
                             <button class="btn btn-outline-secondary" onclick="location.reload()">
-                                <i class="fas fa-redo me-2"></i>重新开始
+                                <i class="fas fa-redo me-2"></i>{{ t('restart') }}
                             </button>
                         </div>
                     </div>
@@ -204,8 +213,8 @@
             <div class="card feature-card h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-user-secret fa-3x text-primary mb-3"></i>
-                    <h5>人脸保护</h5>
-                    <p>自动检测图像中的人脸并进行模糊处理，保护个人隐私</p>
+                    <h5>{{ t('banner_face_title') }}</h5>
+                    <p>{{ t('banner_face_desc') }}</p>
                 </div>
             </div>
         </div>
@@ -213,8 +222,8 @@
             <div class="card feature-card h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-car fa-3x text-success mb-3"></i>
-                    <h5>车牌脱敏</h5>
-                    <p>智能识别车牌号码并进行模糊处理，防止车辆信息泄露</p>
+                    <h5>{{ t('banner_plate_title') }}</h5>
+                    <p>{{ t('banner_plate_desc') }}</p>
                 </div>
             </div>
         </div>
@@ -222,8 +231,8 @@
             <div class="card feature-card h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-font fa-3x text-warning mb-3"></i>
-                    <h5>文本保护</h5>
-                    <p>检测街牌、标识等敏感文本信息并进行脱敏处理</p>
+                    <h5>{{ t('banner_text_title') }}</h5>
+                    <p>{{ t('banner_text_desc') }}</p>
                 </div>
             </div>
         </div>
@@ -234,6 +243,24 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 本地化消息
+    const MSG_PLEASE_SELECT = "{{ t('please_select_files') }}";
+    const MSG_MORE_NOT_SHOWN = "{{ t('more_not_shown') }}"; // contains {n}
+    const MSG_UPLOADED_PROCESSING = "{{ t('uploaded_processing') }}";
+    const MSG_COMPLETED = "{{ t('completed') }}";
+    const MSG_PROCESSING_FAILED = "{{ t('processing_failed') }}";
+    const MSG_START = "{{ t('start_btn') }}";
+    const MSG_PROCESSING_PERCENT = "{{ t('processing_percent') }}"; // contains {p}
+    const MSG_PROCESSED_COUNT = "{{ t('processed_count') }}"; // contains {n}
+    // 语言切换
+    const langSelect = document.getElementById('langSelect');
+    if (langSelect) {
+        langSelect.addEventListener('change', function() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('lang', this.value);
+            window.location.href = url.toString();
+        });
+    }
     // 显示隐私协议
     const privacyModal = new bootstrap.Modal(document.getElementById('privacyModal'));
     privacyModal.show();
@@ -407,7 +434,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const more = filesArr.length - DISPLAY_LIMIT;
             const notice = document.createElement('div');
             notice.className = 'alert alert-secondary';
-            notice.innerHTML = `<i class="fas fa-ellipsis-h me-2"></i>还有 ${more} 个文件未显示...`;
+            notice.innerHTML = `<i class="fas fa-ellipsis-h me-2"></i>${MSG_MORE_NOT_SHOWN.replace('{n}', more)}`;
             fileList.appendChild(notice);
         }
 
@@ -422,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const files = (selectedFiles && selectedFiles.length) ? selectedFiles : Array.from(fileInput.files);
 
         if (files.length === 0) {
-            alert('请选择文件');
+            alert(MSG_PLEASE_SELECT);
             return;
         }
 
@@ -442,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 显示进度
         progressContainer.style.display = 'block';
         uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>处理中...';
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + "{{ t('processing') }}";
 
         try {
             const response = await fetch('/api/upload', {
@@ -455,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) {
                 // 更新进度条为上传完成
                 progressBar.style.width = '50%';
-                progressText.textContent = '文件已上传，正在处理...';
+                progressText.textContent = MSG_UPLOADED_PROCESSING;
 
                 // 开始轮询处理状态
                 const pollInterval = setInterval(async () => {
@@ -466,22 +493,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (statusData.status === 'completed') {
                             clearInterval(pollInterval);
                             progressBar.style.width = '100%';
-                            progressText.textContent = '处理完成！';
+                            progressText.textContent = MSG_COMPLETED;
                             
                             // 显示结果
-                            document.getElementById('resultText').textContent = 
-                                `成功处理了 ${statusData.processed_files} 个文件`;
+                            document.getElementById('resultText').textContent =
+                                MSG_PROCESSED_COUNT.replace('{n}', statusData.processed_files);
                             document.getElementById('downloadBtn').href = statusData.download_url;
                             resultArea.style.display = 'block';
                             progressContainer.style.display = 'none';
                             uploadBtn.disabled = false;
-                            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>开始处理';
+                            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>' + MSG_START;
                         } else if (statusData.status === 'processing') {
                             progressBar.style.width = `${50 + (statusData.progress * 50)}%`;
-                            progressText.textContent = `正在处理：${Math.round(statusData.progress * 100)}%`;
+                            progressText.textContent = MSG_PROCESSING_PERCENT.replace('{p}', Math.round(statusData.progress * 100));
                         } else if (statusData.status === 'error') {
                             clearInterval(pollInterval);
-                            throw new Error(statusData.error || '处理失败');
+                            throw new Error(statusData.error || MSG_PROCESSING_FAILED);
                         }
                     } catch (error) {
                         clearInterval(pollInterval);
@@ -489,13 +516,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }, 1000);  // 每秒轮询一次
             } else {
-                throw new Error(result.detail || '处理失败');
+                throw new Error(result.detail || MSG_PROCESSING_FAILED);
             }
         } catch (error) {
-            alert('处理失败: ' + error.message);
+            alert(MSG_PROCESSING_FAILED + ': ' + error.message);
             progressContainer.style.display = 'none';
             uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>开始处理';
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>' + MSG_START;
         }
     });
 });

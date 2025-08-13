@@ -32,6 +32,86 @@ app = FastAPI(title="数据脱敏系统", description="支持人脸、车牌、�
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# 简单中英翻译
+TRANSLATIONS = {
+    "app_title": {"zh": "数据脱敏系统", "en": "Data Anonymization System"},
+    "app_lead": {"zh": "智能检测并保护您图像中的敏感信息", "en": "Intelligently detect and protect sensitive content in your images"},
+    "select_server": {"zh": "选择处理服务器", "en": "Select Processing Server"},
+    "server_europe": {"zh": "欧洲服务器", "en": "Europe Server"},
+    "server_america": {"zh": "美国服务器", "en": "US Server"},
+    "server_asia": {"zh": "亚洲服务器", "en": "Asia Server"},
+    "upload_drop_hint": {"zh": "拖拽文件到此处或点击选择", "en": "Drag files here or click to select"},
+    "upload_types_hint": {"zh": "支持 JPG, PNG, BMP, TIFF 格式图像", "en": "Supports JPG, PNG, BMP, TIFF images"},
+    "select_files_btn": {"zh": "选择文件", "en": "Select Files"},
+    "start_btn": {"zh": "开始处理", "en": "Start Processing"},
+    "lang_label": {"zh": "语言", "en": "Language"},
+    # Settings & options
+    "settings_title": {"zh": "脱敏设置", "en": "Anonymization Settings"},
+    "enable_anonymization": {"zh": "启用数据脱敏", "en": "Enable Anonymization"},
+    "face_blur": {"zh": "人脸脱敏", "en": "Face Blur"},
+    "plate_blur": {"zh": "车牌脱敏", "en": "License Plate Blur"},
+    "text_blur": {"zh": "文本脱敏", "en": "Text Blur"},
+    "blur_method": {"zh": "模糊方式", "en": "Blur Method"},
+    "blur_gaussian": {"zh": "高斯模糊", "en": "Gaussian Blur"},
+    "blur_pixelate": {"zh": "像素化", "en": "Pixelate"},
+    # Pick mode
+    "pick_mode": {"zh": "选择模式：", "en": "Pick Mode:"},
+    "pick_file": {"zh": "文件", "en": "Files"},
+    "pick_folder": {"zh": "文件夹", "en": "Folder"},
+    "pick_hint": {"zh": "提示：拖拽暂不支持整夹拖入，请使用“选择文件”按钮选择文件夹", "en": "Tip: Folder drag-and-drop may not be supported. Use 'Select Files' to pick a folder."},
+    # Banner and actions
+    "download_processed": {"zh": "下载处理后的文件", "en": "Download Processed Files"},
+    "restart": {"zh": "重新开始", "en": "Restart"},
+    # JS messages
+    "please_select_files": {"zh": "请选择文件", "en": "Please select files"},
+    "uploaded_processing": {"zh": "文件已上传，正在处理...", "en": "Files uploaded, processing..."},
+    "processed_count": {"zh": "成功处理了 {n} 个文件", "en": "Successfully processed {n} files"},
+    "more_not_shown": {"zh": "还有 {n} 个文件未显示...", "en": "{n} more files not shown..."},
+    "processing_failed": {"zh": "处理失败", "en": "Processing failed"},
+    "processing": {"zh": "处理中...", "en": "Processing..."},
+    "completed": {"zh": "处理完成！", "en": "Completed!"},
+    "processing_percent": {"zh": "正在处理：{p}%", "en": "Processing: {p}%"},
+    # Banner section
+    "banner_face_title": {"zh": "人脸保护", "en": "Face Protection"},
+    "banner_face_desc": {"zh": "自动检测图像中的人脸并进行模糊处理，保护个人隐私", "en": "Automatically detect faces and blur them to protect privacy."},
+    "banner_plate_title": {"zh": "车牌脱敏", "en": "License Plate Anonymization"},
+    "banner_plate_desc": {"zh": "智能识别车牌号码并进行模糊处理，防止车辆信息泄露", "en": "Intelligently detect license plates and blur them to prevent leakage."},
+    "banner_text_title": {"zh": "文本保护", "en": "Text Protection"},
+    "banner_text_desc": {"zh": "检测街牌、标识等敏感文本信息并进行脱敏处理", "en": "Detect sensitive text like street signs and anonymize it."},
+    # Privacy modal
+    "privacy_title": {"zh": "隐私声明协议", "en": "Privacy Notice"},
+    "privacy_read": {"zh": "请仔细阅读以下隐私声明，了解我们如何处理您的数据。", "en": "Please read the privacy notice to understand how we handle your data."},
+    "privacy_data_info": {"zh": "数据处理说明：", "en": "Data Processing Info:"},
+    "privacy_local": {"zh": "我们仅在您的设备上本地处理图像数据", "en": "We process images locally on your device."},
+    "privacy_no_upload": {"zh": "不会将原始图像上传到外部服务器", "en": "We do not upload originals to external servers."},
+    "privacy_models": {"zh": "脱敏处理使用开源AI模型，在CPU上运行", "en": "Anonymization uses open-source AI models on CPU."},
+    "privacy_cleanup": {"zh": "处理完成后，临时文件将被自动删除", "en": "Temporary files are removed after processing."},
+    "privacy_optional": {"zh": "您可以选择是否启用脱敏功能", "en": "You may choose whether to enable anonymization."},
+    "privacy_types": {"zh": "支持的脱敏类型：", "en": "Supported Anonymization Types:"},
+    "privacy_face": {"zh": "人脸脱敏：自动检测并模糊人脸区域", "en": "Face: Detect and blur face regions."},
+    "privacy_plate": {"zh": "车牌脱敏：检测并模糊车牌号码", "en": "License Plate: Detect and blur plate numbers."},
+    "privacy_text": {"zh": "文本脱敏：检测并模糊街牌、标识等文本", "en": "Text: Detect and blur street signs and labels."},
+    "btn_cancel": {"zh": "取消", "en": "Cancel"},
+    "btn_agree": {"zh": "我同意并继续", "en": "I Agree and Continue"},
+    # Nav and footer
+    "home_nav": {"zh": "首页", "en": "Home"},
+    "privacy_nav": {"zh": "隐私协议", "en": "Privacy"},
+    "footer_text": {"zh": "© 2024 数据脱敏系统. 保护您的隐私数据.", "en": "© 2024 Data Anonymization System. Protect your privacy data."},
+}
+
+def translate(key: str, lang: str = "zh") -> str:
+    entry = TRANSLATIONS.get(key, {})
+    return entry.get(lang, entry.get("zh", key))
+
+def get_lang_from_request(request: Request) -> str:
+    lang = request.query_params.get("lang")
+    if lang in ("zh", "en"):
+        return lang
+    cookie_lang = request.cookies.get("lang")
+    if cookie_lang in ("zh", "en"):
+        return cookie_lang
+    return "zh"
+
 # 全局配置
 UPLOAD_DIR = Path("uploads")
 OUTPUT_DIR = Path("output")
@@ -92,12 +172,25 @@ def get_text_blurrer():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """主页"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    lang = get_lang_from_request(request)
+    # 提供一个基于当前语言的翻译函数给模板
+    def t(key: str):
+        return translate(key, lang)
+    context = {"request": request, "lang": lang, "t": t}
+    response = templates.TemplateResponse("index.html", context)
+    response.set_cookie("lang", lang, max_age=3600*24*365)
+    return response
 
 @app.get("/privacy", response_class=HTMLResponse)
 async def privacy_agreement(request: Request):
     """隐私协议页面"""
-    return templates.TemplateResponse("privacy.html", {"request": request})
+    lang = get_lang_from_request(request)
+    def t(key: str):
+        return translate(key, lang)
+    context = {"request": request, "lang": lang, "t": t}
+    response = templates.TemplateResponse("privacy.html", context)
+    response.set_cookie("lang", lang, max_age=3600*24*365)
+    return response
 
 @app.post("/api/upload")
 async def upload_files(
