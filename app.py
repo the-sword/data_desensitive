@@ -11,6 +11,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from typing import List, Optional
+from datetime import datetime
 import uuid
 
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
@@ -38,6 +39,13 @@ TEMP_DIR = Path("temp")
 
 # 处理状态跟踪
 PROCESSING_SESSIONS = {}
+
+# 区域映射：将前端选项映射到 uploads 下的目录名
+REGION_MAP = {
+    "america": "us",
+    "europe": "un",
+    "asia": "asia",
+}
 
 # 确保目录存在
 for dir_path in [UPLOAD_DIR, OUTPUT_DIR, TEMP_DIR]:
@@ -125,6 +133,12 @@ async def upload_files(
     output_dir = session_dir / "output"
     input_dir.mkdir(exist_ok=True)
     output_dir.mkdir(exist_ok=True)
+
+    # 解析目标服务器（本地模拟）目录
+    region_code = REGION_MAP.get(server_region, "eu")
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    target_dir = UPLOAD_DIR / region_code / f"{ts}_{session_id[:8]}"
+    target_dir.mkdir(parents=True, exist_ok=True)
     
     try:
         # 保存上传的文件
@@ -139,54 +153,85 @@ async def upload_files(
         
         logger.info(f"会话 {session_id}: 上传了 {len(uploaded_files)} 个文件")
         
-        # 如果不需要脱敏，直接复制文件
+        # 如果未启用脱敏：直接按照规则复制到目标“服务器”目录
         if not enable_anonymization:
-            for file_path in uploaded_files:
-                shutil.copy2(file_path, output_dir / file_path.name)
-            logger.info(f"会话 {session_id}: 跳过脱敏处理")
-        else:
-            # 执行脱敏处理
             processed_count = 0
             for file_path in uploaded_files:
-                if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-                    try:
-                        output_path = output_dir / file_path.name
-                        current_path = str(file_path)
-                        
-                        # 按顺序应用各种脱敏
-                        if blur_faces:
-                            blurrer = get_face_blurrer()
-                            temp_path = str(session_dir / f"temp_face_{file_path.name}")
-                            blurrer.process_image(current_path, temp_path, method=blur_method)
-                            current_path = temp_path
-                        
-                        if blur_plates:
-                            blurrer = get_plate_blurrer()
-                            temp_path = str(session_dir / f"temp_plate_{file_path.name}")
-                            blurrer.process_image(current_path, temp_path, method=blur_method)
-                            current_path = temp_path
-                        
-                        if blur_texts:
-                            blurrer = get_text_blurrer()
-                            temp_path = str(session_dir / f"temp_text_{file_path.name}")
-                            blurrer.process_image(current_path, temp_path, method=blur_method)
-                            current_path = temp_path
-                        
-                        # 复制最终结果
-                        shutil.copy2(current_path, output_path)
-                        processed_count += 1
-                        PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
-                        PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
-                        
-                    except Exception as e:
-                        logger.error(f"处理文件 {file_path.name} 时出错: {e}")
-                        # 如果处理失败，复制原文件
-                        shutil.copy2(file_path, output_dir / file_path.name)
-                else:
-                    # 非图像文件直接复制
+                try:
+                    # 直接复制所有文件（包含非图像）
+                    shutil.copy2(file_path, target_dir / file_path.name)
+                    processed_count += 1
+                    PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
+                    PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
+                except Exception as e:
+                    logger.error(f"复制文件 {file_path.name} 到 {target_dir} 时出错: {e}")
+
+            # 为方便用户依旧提供下载包（从目标目录打包）
+            zip_path = session_dir / "processed_files.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zipf:
+                for f in target_dir.iterdir():
+                    if f.is_file():
+                        zipf.write(f, f.name)
+
+            PROCESSING_SESSIONS[session_id]["progress"] = 1.0
+            return JSONResponse({
+                "success": True,
+                "session_id": session_id,
+                "processed_files": processed_count,
+                "download_url": f"/api/download/{session_id}",
+                "target_dir": str(target_dir)
+            })
+
+        # 执行脱敏处理
+        processed_count = 0
+        for file_path in uploaded_files:
+            if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
+                try:
+                    output_path = output_dir / file_path.name
+                    current_path = str(file_path)
+                    
+                    # 按顺序应用各种脱敏
+                    if blur_faces:
+                        blurrer = get_face_blurrer()
+                        temp_path = str(session_dir / f"temp_face_{file_path.name}")
+                        blurrer.process_image(current_path, temp_path, method=blur_method)
+                        current_path = temp_path
+                    
+                    if blur_plates:
+                        blurrer = get_plate_blurrer()
+                        temp_path = str(session_dir / f"temp_plate_{file_path.name}")
+                        blurrer.process_image(current_path, temp_path, method=blur_method)
+                        current_path = temp_path
+                    
+                    if blur_texts:
+                        blurrer = get_text_blurrer()
+                        temp_path = str(session_dir / f"temp_text_{file_path.name}")
+                        blurrer.process_image(current_path, temp_path, method=blur_method)
+                        current_path = temp_path
+                    
+                    # 复制最终结果到会话输出目录
+                    shutil.copy2(current_path, output_path)
+                    processed_count += 1
+                    PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
+                    PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
+                    
+                except Exception as e:
+                    logger.error(f"处理文件 {file_path.name} 时出错: {e}")
+                    # 如果处理失败，复制原文件
                     shutil.copy2(file_path, output_dir / file_path.name)
-            
-            logger.info(f"会话 {session_id}: 成功处理了 {processed_count} 个图像文件")
+            else:
+                # 非图像文件直接复制
+                shutil.copy2(file_path, output_dir / file_path.name)
+        
+        logger.info(f"会话 {session_id}: 成功处理了 {processed_count} 个图像文件")
+
+        # 将会话输出目录内容复制到目标“服务器”目录
+        for f in output_dir.iterdir():
+            if f.is_file():
+                try:
+                    shutil.copy2(f, target_dir / f.name)
+                except Exception as e:
+                    logger.error(f"复制处理结果 {f.name} 到 {target_dir} 时出错: {e}")
         
         # 创建下载包
         zip_path = session_dir / "processed_files.zip"
@@ -199,7 +244,8 @@ async def upload_files(
             "success": True,
             "session_id": session_id,
             "processed_files": len(list(output_dir.iterdir())),
-            "download_url": f"/api/download/{session_id}"
+            "download_url": f"/api/download/{session_id}",
+            "target_dir": str(target_dir)
         })
         
     except Exception as e:
