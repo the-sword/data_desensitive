@@ -175,7 +175,9 @@ def get_face_blurrer():
     global face_blurrer
     if face_blurrer is None:
         try:
-            face_blurrer = FaceBlurrer(warmup=True)
+            # 从环境变量读取可调参数，提供合理默认值
+            face_shrink = float(os.getenv("FACE_SHRINK_RATIO", "0.25"))
+            face_blurrer = FaceBlurrer(warmup=True, shrink_ratio=face_shrink)
             logger.info("人脸检测器初始化完成")
         except Exception as e:
             logger.error(f"人脸检测器初始化失败: {e}")
@@ -186,7 +188,8 @@ def get_plate_blurrer():
     global plate_blurrer
     if plate_blurrer is None:
         try:
-            plate_blurrer = PlateBlurrer(warmup=True)
+            plate_shrink = float(os.getenv("PLATE_SHRINK_RATIO", "0.20"))
+            plate_blurrer = PlateBlurrer(warmup=True, shrink_ratio=plate_shrink)
             logger.info("车牌检测器初始化完成")
         except Exception as e:
             logger.error(f"车牌检测器初始化失败: {e}")
@@ -197,7 +200,16 @@ def get_text_blurrer():
     global text_blurrer
     if text_blurrer is None:
         try:
-            text_blurrer = TextBlurrer(warmup=True)
+            # 文本检测的膨胀与填充可调，默认减小覆盖范围
+            dilate_px = int(os.getenv("TEXT_DILATE_PX", "8"))
+            pad_ratio = float(os.getenv("TEXT_PAD_RATIO", "0.0"))
+            use_padded_rect = os.getenv("TEXT_USE_PADDED_RECT", "false").lower() in ("1", "true", "yes")
+            text_blurrer = TextBlurrer(
+                warmup=True,
+                dilate_px=dilate_px,
+                pad_ratio=pad_ratio,
+                use_padded_rect=use_padded_rect,
+            )
             logger.info("文本检测器初始化完成")
         except Exception as e:
             logger.error(f"文本检测器初始化失败: {e}")
@@ -351,15 +363,15 @@ async def upload_files(
     blur_method: str = Form("gaussian")
 ):
     """处理文件上传和脱敏"""
-    
+
     if not files:
         raise HTTPException(status_code=400, detail="未选择文件")
-    
+
     # 创建唯一的处理会话ID
     session_id = str(uuid.uuid4())
     session_dir = TEMP_DIR / session_id
     session_dir.mkdir(exist_ok=True)
-    
+
     # 初始化处理状态
     PROCESSING_SESSIONS[session_id] = {
         "status": "processing",
@@ -368,7 +380,7 @@ async def upload_files(
         "processed_files": 0,
         "error": None
     }
-    
+
     input_dir = session_dir / "input"
     output_dir = session_dir / "output"
     input_dir.mkdir(exist_ok=True)
@@ -379,7 +391,7 @@ async def upload_files(
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     target_dir = UPLOAD_DIR / region_code / f"{ts}_{session_id[:8]}"
     target_dir.mkdir(parents=True, exist_ok=True)
-    
+
     try:
         # 保存上传的文件
         uploaded_files = []
@@ -390,9 +402,9 @@ async def upload_files(
                     content = await file.read()
                     buffer.write(content)
                 uploaded_files.append(file_path)
-        
+
         logger.info(f"会话 {session_id}: 上传了 {len(uploaded_files)} 个文件")
-        
+
         # 如果未启用脱敏：直接按照规则复制到目标“服务器”目录
         if not enable_anonymization:
             processed_count = 0
@@ -429,32 +441,32 @@ async def upload_files(
                 try:
                     output_path = output_dir / file_path.name
                     current_path = str(file_path)
-                    
+
                     # 按顺序应用各种脱敏
                     if blur_faces:
                         blurrer = get_face_blurrer()
                         temp_path = str(session_dir / f"temp_face_{file_path.name}")
                         blurrer.process_image(current_path, temp_path, method=blur_method)
                         current_path = temp_path
-                    
+
                     if blur_plates:
                         blurrer = get_plate_blurrer()
                         temp_path = str(session_dir / f"temp_plate_{file_path.name}")
                         blurrer.process_image(current_path, temp_path, method=blur_method)
                         current_path = temp_path
-                    
+
                     if blur_texts:
                         blurrer = get_text_blurrer()
                         temp_path = str(session_dir / f"temp_text_{file_path.name}")
                         blurrer.process_image(current_path, temp_path, method=blur_method)
                         current_path = temp_path
-                    
+
                     # 复制最终结果到会话输出目录
                     shutil.copy2(current_path, output_path)
                     processed_count += 1
                     PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
                     PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
-                    
+
                 except Exception as e:
                     logger.error(f"处理文件 {file_path.name} 时出错: {e}")
                     # 如果处理失败，复制原文件
@@ -462,7 +474,7 @@ async def upload_files(
             else:
                 # 非图像文件直接复制
                 shutil.copy2(file_path, output_dir / file_path.name)
-        
+
         logger.info(f"会话 {session_id}: 成功处理了 {processed_count} 个图像文件")
 
         # 将会话输出目录内容复制到目标“服务器”目录
@@ -472,7 +484,7 @@ async def upload_files(
                     shutil.copy2(f, target_dir / f.name)
                 except Exception as e:
                     logger.error(f"复制处理结果 {f.name} 到 {target_dir} 时出错: {e}")
-        
+
         # 处理完成后清理会话临时目录
         def _cleanup_session_dir(p: str):
             try:
@@ -488,7 +500,7 @@ async def upload_files(
             "processed_files": len(list(output_dir.iterdir())),
             "target_dir": str(target_dir)
         })
-        
+
     except Exception as e:
         logger.error(f"处理会话 {session_id} 时出错: {e}")
         # 清理临时文件
@@ -501,10 +513,10 @@ async def download_processed_files(session_id: str, background_tasks: Background
     """下载处理后的文件"""
     session_dir = TEMP_DIR / session_id
     zip_path = session_dir / "processed_files.zip"
-    
+
     if not zip_path.exists():
         raise HTTPException(status_code=404, detail="文件不存在或已过期")
-    
+
     # 下载后自动删除该会话的临时目录
     def _cleanup_session(p: str):
         try:
@@ -540,20 +552,20 @@ async def check_processing_status(session_id: str):
     """检查处理状态"""
     if session_id not in PROCESSING_SESSIONS:
         raise HTTPException(status_code=404, detail="会话不存在")
-    
+
     session_status = PROCESSING_SESSIONS[session_id]
-    
+
     # 如果处理完成
     if session_status["progress"] >= 1:
         session_status["status"] = "completed"
-    
+
     return session_status
 
 if __name__ == "__main__":
     # 配置日志
     # Use stdout for Docker logging
     logger.add(sys.stdout, colorize=True)
-    
+
     # 启动服务器
     uvicorn.run(
         "app:app",

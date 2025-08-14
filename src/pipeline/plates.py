@@ -6,7 +6,7 @@ from typing import List, Tuple, Optional
 
 class PlateBlurrer:
     def __init__(self, warmup: bool = True, backend: str = "yolov8_plate", weights_path: Optional[str] = None,
-                 cascade_path: Optional[str] = None):
+                 cascade_path: Optional[str] = None, shrink_ratio: float = 0.0):
         """
         车牌检测与模糊（与 FaceBlurrer 流程一致）。
 
@@ -15,6 +15,7 @@ class PlateBlurrer:
           backend: 检测后端，支持 "yolov8_plate" | "haarcascade_plate"
           weights_path: YOLOv8 车牌检测权重路径（默认 models/license_plate_detector.pt）
           cascade_path: Haarcascade XML 路径（默认 models/haarcascade_russian_plate_number.xml）
+          shrink_ratio: 在模糊前按框中心向内收缩比例（0.0~0.5），0 表示不缩小
         """
         # CPU 运行与静默日志
         os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
@@ -26,6 +27,7 @@ class PlateBlurrer:
                                                          "models", "license_plate_detector.pt")
         self.cascade_path = cascade_path or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                                                          "models", "haarcascade_russian_plate_number.xml")
+        self.shrink_ratio = float(max(0.0, min(shrink_ratio, 0.49)))
         self.detector = self._load_detector()
 
         if warmup:
@@ -81,6 +83,23 @@ class PlateBlurrer:
             x2, y2 = min(w, x2), min(h, y2)
             if x2 <= x1 or y2 <= y1:
                 continue
+
+            # 可选：在模糊前按中心缩小 ROI
+            if self.shrink_ratio > 0:
+                bw = x2 - x1
+                bh = y2 - y1
+                cx = x1 + bw / 2.0
+                cy = y1 + bh / 2.0
+                new_bw = max(1.0, bw * (1.0 - self.shrink_ratio))
+                new_bh = max(1.0, bh * (1.0 - self.shrink_ratio))
+                nx1 = int(round(cx - new_bw / 2.0))
+                ny1 = int(round(cy - new_bh / 2.0))
+                nx2 = int(round(cx + new_bw / 2.0))
+                ny2 = int(round(cy + new_bh / 2.0))
+                x1, y1 = max(0, nx1), max(0, ny1)
+                x2, y2 = min(w, nx2), min(h, ny2)
+                if x2 <= x1 or y2 <= y1:
+                    continue
             roi = image[y1:y2, x1:x2]
 
             if method == "pixelate":
