@@ -1,0 +1,3 @@
+[submodule "src/DBNet"]
+	path = src/DBNet
+	url = https://github.com/the-sword/DBNet
