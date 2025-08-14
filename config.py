@@ -64,6 +64,24 @@ SECURITY_CONFIG = {
     "trusted_hosts": os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1").split(",")
 }
 
+# 脱敏参数（统一从配置读取，可被环境变量覆盖）
+ANONYMIZATION = {
+    # 人脸/车牌缩小比例（0.0 ~ 0.49）
+    "face_shrink_ratio": float(os.getenv("FACE_SHRINK_RATIO", "0.25")),
+    "plate_shrink_ratio": float(os.getenv("PLATE_SHRINK_RATIO", "0.20")),
+    # 文本区域膨胀与额外padding
+    "text_dilate_px": int(os.getenv("TEXT_DILATE_PX", "8")),
+    "text_pad_ratio": float(os.getenv("TEXT_PAD_RATIO", "0.0")),
+    "text_use_padded_rect": os.getenv("TEXT_USE_PADDED_RECT", "false").lower() in ("1", "true", "yes"),
+}
+
+# 并行处理设置
+PARALLEL = {
+    "enable_parallel": os.getenv("ENABLE_PARALLEL", "false").lower() in ("1", "true", "yes"),
+    # 默认固定为4，可通过环境变量 MAX_WORKERS 覆盖
+    "max_workers": int(os.getenv("MAX_WORKERS", "4")),
+}
+
 # 服务器区域配置
 SERVER_REGIONS = {
     "europe": {

@@ -26,6 +26,7 @@ from loguru import logger
 from src.pipeline.faces import FaceBlurrer
 from src.pipeline.plates import PlateBlurrer
 from src.pipeline.texts import TextBlurrer
+from config import ANONYMIZATION, PARALLEL
 
 app = FastAPI(title="数据脱敏系统", description="支持人脸、车牌、街牌检测与脱敏")
 
@@ -175,8 +176,8 @@ def get_face_blurrer():
     global face_blurrer
     if face_blurrer is None:
         try:
-            # 从环境变量读取可调参数，提供合理默认值
-            face_shrink = float(os.getenv("FACE_SHRINK_RATIO", "0.25"))
+            # 从配置读取缩小比例
+            face_shrink = float(ANONYMIZATION.get("face_shrink_ratio", 0.25))
             face_blurrer = FaceBlurrer(warmup=True, shrink_ratio=face_shrink)
             logger.info("人脸检测器初始化完成")
         except Exception as e:
@@ -188,7 +189,7 @@ def get_plate_blurrer():
     global plate_blurrer
     if plate_blurrer is None:
         try:
-            plate_shrink = float(os.getenv("PLATE_SHRINK_RATIO", "0.20"))
+            plate_shrink = float(ANONYMIZATION.get("plate_shrink_ratio", 0.20))
             plate_blurrer = PlateBlurrer(warmup=True, shrink_ratio=plate_shrink)
             logger.info("车牌检测器初始化完成")
         except Exception as e:
@@ -200,10 +201,10 @@ def get_text_blurrer():
     global text_blurrer
     if text_blurrer is None:
         try:
-            # 文本检测的膨胀与填充可调，默认减小覆盖范围
-            dilate_px = int(os.getenv("TEXT_DILATE_PX", "8"))
-            pad_ratio = float(os.getenv("TEXT_PAD_RATIO", "0.0"))
-            use_padded_rect = os.getenv("TEXT_USE_PADDED_RECT", "false").lower() in ("1", "true", "yes")
+            # 文本检测的膨胀与填充从配置读取
+            dilate_px = int(ANONYMIZATION.get("text_dilate_px", 8))
+            pad_ratio = float(ANONYMIZATION.get("text_pad_ratio", 0.0))
+            use_padded_rect = bool(ANONYMIZATION.get("text_use_padded_rect", False))
             text_blurrer = TextBlurrer(
                 warmup=True,
                 dilate_px=dilate_px,
@@ -434,46 +435,70 @@ async def upload_files(
                 "target_dir": str(target_dir)
             })
 
-        # 执行脱敏处理
+        # 执行脱敏处理（支持线程池并行）
         processed_count = 0
-        for file_path in uploaded_files:
-            if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-                try:
+        enable_parallel = bool(PARALLEL.get("enable_parallel", False))
+        max_workers = int(PARALLEL.get("max_workers", 4))
+
+        def _is_image(p: Path) -> bool:
+            return p.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
+
+        def process_single_file(file_path: Path):
+            try:
+                if _is_image(file_path):
                     output_path = output_dir / file_path.name
                     current_path = str(file_path)
-
                     # 按顺序应用各种脱敏
                     if blur_faces:
                         blurrer = get_face_blurrer()
                         temp_path = str(session_dir / f"temp_face_{file_path.name}")
                         blurrer.process_image(current_path, temp_path, method=blur_method)
                         current_path = temp_path
-
                     if blur_plates:
                         blurrer = get_plate_blurrer()
                         temp_path = str(session_dir / f"temp_plate_{file_path.name}")
                         blurrer.process_image(current_path, temp_path, method=blur_method)
                         current_path = temp_path
-
                     if blur_texts:
                         blurrer = get_text_blurrer()
                         temp_path = str(session_dir / f"temp_text_{file_path.name}")
                         blurrer.process_image(current_path, temp_path, method=blur_method)
                         current_path = temp_path
-
                     # 复制最终结果到会话输出目录
                     shutil.copy2(current_path, output_path)
-                    processed_count += 1
-                    PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
-                    PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
-
-                except Exception as e:
-                    logger.error(f"处理文件 {file_path.name} 时出错: {e}")
-                    # 如果处理失败，复制原文件
+                else:
+                    # 非图像文件直接复制
                     shutil.copy2(file_path, output_dir / file_path.name)
-            else:
-                # 非图像文件直接复制
-                shutil.copy2(file_path, output_dir / file_path.name)
+                return (file_path.name, True, None)
+            except Exception as e:
+                logger.error(f"处理文件 {file_path.name} 时出错: {e}")
+                # 如果处理失败，复制原文件
+                try:
+                    shutil.copy2(file_path, output_dir / file_path.name)
+                except Exception:
+                    pass
+                return (file_path.name, False, str(e))
+
+        if enable_parallel and len(uploaded_files) > 1:
+            # 线程池并行
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import threading
+            lock = threading.Lock()
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = {ex.submit(process_single_file, fp): fp for fp in uploaded_files}
+                for fut in as_completed(futures):
+                    _name, ok, _err = fut.result()
+                    with lock:
+                        processed_count += 1
+                        PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
+                        PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
+        else:
+            # 串行处理（与原逻辑等价）
+            for file_path in uploaded_files:
+                _name, ok, _err = process_single_file(file_path)
+                processed_count += 1
+                PROCESSING_SESSIONS[session_id]["processed_files"] = processed_count
+                PROCESSING_SESSIONS[session_id]["progress"] = processed_count / len(files)
 
         logger.info(f"会话 {session_id}: 成功处理了 {processed_count} 个图像文件")
 
