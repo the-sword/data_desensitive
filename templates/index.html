@@ -92,8 +92,8 @@
                     </div>
                 </div>
 
-                <!-- 脱敏设置 -->
-                <div class="card mb-4">
+                <!-- 脱敏设置（隐藏） -->
+                <div class="card mb-4" style="display: none;">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-cog me-2"></i>{{ t('settings_title') }}</h5>
                     </div>
@@ -455,13 +455,13 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('files', file);
         }
 
-        // 添加设置
-        formData.append('enable_anonymization', enableAnonymization.checked);
+        // 添加设置（前端隐藏，固定开启与默认选项）
+        formData.append('enable_anonymization', true);
         formData.append('server_region', document.querySelector('input[name="serverRegion"]:checked').value);
-        formData.append('blur_faces', document.getElementById('blurFaces').checked);
-        formData.append('blur_plates', document.getElementById('blurPlates').checked);
-        formData.append('blur_texts', document.getElementById('blurTexts').checked);
-        formData.append('blur_method', document.getElementById('blurMethod').value);
+        formData.append('blur_faces', true);
+        formData.append('blur_plates', true);
+        formData.append('blur_texts', true);
+        formData.append('blur_method', 'gaussian');
 
         // 显示进度
         progressContainer.style.display = 'block';
